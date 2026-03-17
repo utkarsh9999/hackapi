@@ -1,5 +1,4 @@
 const cloudinary = require("../config/cloudinary");
-const fs = require("fs");
 
 exports.uploadSingleImage = async (req, res) => {
   try {
@@ -7,11 +6,12 @@ exports.uploadSingleImage = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
+    // Convert buffer to data URI for Cloudinary
+    const dataURI = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+    const result = await cloudinary.uploader.upload(dataURI, {
       folder: "react_native_uploads"
     });
-
-    fs.unlinkSync(req.file.path); // delete local file
 
     res.status(200).json({
       message: "Upload successful",
@@ -38,17 +38,13 @@ exports.uploadMultipleImages = async (req, res) => {
 
     console.log("Folder:", folder);
 
-    const uploadPromises = req.files.map(file =>
-      cloudinary.uploader.upload(file.path, { folder })
-    );
+    // Convert buffers to data URIs for Cloudinary
+    const uploadPromises = req.files.map(file => {
+      const dataURI = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      return cloudinary.uploader.upload(dataURI, { folder });
+    });
 
     const results = await Promise.all(uploadPromises);
-
-    req.files.forEach(file => {
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
-    });
 
     const urls = results.map(r => r.secure_url);
 
