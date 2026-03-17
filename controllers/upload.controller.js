@@ -30,22 +30,32 @@ exports.uploadMultipleImages = async (req, res) => {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
+    const name = req.body.name || "default";
+
+    const safeName = name.replace(/\s+/g, "_").toLowerCase();
+
+    const folder = `${safeName}`;
+
+    console.log("Folder:", folder);
+
     const uploadPromises = req.files.map(file =>
-      cloudinary.uploader.upload(file.path, {
-        folder: "react_native_uploads"
-      })
+      cloudinary.uploader.upload(file.path, { folder })
     );
 
     const results = await Promise.all(uploadPromises);
 
-    // delete all local files
-    req.files.forEach(file => fs.unlinkSync(file.path));
+    req.files.forEach(file => {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    });
 
     const urls = results.map(r => r.secure_url);
 
     res.status(200).json({
       message: "Multiple upload successful",
-      urls
+      urls,
+      folder
     });
 
   } catch (error) {
